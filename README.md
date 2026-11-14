@@ -191,7 +191,8 @@ bonus-malus band, a driver carrying a recent malus has more than twice the frequ
 most 0.002 Gini, so the bands are adequate and the tariff stays a table. Both age x bonus-malus interactions
 are significant by LR test but rejected by BIC; the test set confirms they add little (+0.0004 to +0.0023
 Gini). The refined model is v1 + flag. It closes **60% of the deviance gap and 58% of the Gini gap** between
-GLM v1 and LightGBM on the test set (`gap_closed.csv`).
+GLM v1 and LightGBM on the test set (`gap_closed.csv`). The idea came from the v1 test-set double lift,
+so the test gain is not fully blind; the out-of-fold CV gain on the training set below is of the same size.
 
 ![Age effect by bonus-malus level](reports/figures/glm_refined_age_bm.png)
 
