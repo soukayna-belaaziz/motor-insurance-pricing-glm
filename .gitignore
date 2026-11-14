@@ -1,0 +1,22 @@
+# data (downloaded / derived, not committed)
+data/raw/
+data/processed/
+*.rda
+*.parquet
+
+# python
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+.venv/
+
+# R
+.Rhistory
+.RData
+.Rproj.user/
+
+# misc
+.DS_Store
+*.log
