@@ -46,6 +46,8 @@ def build_datasets() -> tuple[pd.DataFrame, pd.DataFrame, dict[str, float]]:
 
     full = cleaning.join_severity(freq, cleaning.aggregate_severity(sev_capped))
     train, test = full[~is_test].reset_index(drop=True), full[is_test].reset_index(drop=True)
+    # Cross-validation folds on the training set only (the test set stays untouched).
+    train["CVFold"] = cleaning.assign_folds(train["IDpol"], seed=config.SEED + 2)
 
     n_large = int((sev_train["ClaimAmount"] > threshold).sum())
     info = {

@@ -19,6 +19,8 @@ SEV_CSV = RAW_DIR / "freMTPL2sev.csv"
 
 SEED = 42
 TEST_SHARE = 0.20
+CV_FOLDS = 5              # K-fold cross-validation on the training set
+N_BOOTSTRAP = 1000        # paired bootstrap replicates for the test-set Gini gap
 
 # Cleaning caps. These are business rules fixed a priori from the one-way
 # tables (see README), not parameters fitted on the data.

@@ -9,6 +9,8 @@ breaks are placed where the frequency changes level. The GBM uses the raw
 
 from __future__ import annotations
 
+import math
+
 import pandas as pd
 
 # (upper bounds inclusive, labels). Values are already capped in cleaning.
@@ -45,12 +47,43 @@ def band(values: pd.Series, edges: list[float], labels: list[str]) -> pd.Series:
     return out.astype(str)
 
 
+def claim_free_ladder(start: float = 1.00, floor: float = 0.50, step: float = 0.95) -> list[int]:
+    """Bonus-malus values reachable from ``start`` with claim-free years only (x 100).
+
+    French bonus-malus rule (CRM): each claim-free year multiplies the
+    coefficient by 0.95, truncated to two decimals, with a floor at 0.50.
+    From the entry level 1.00 this gives 100, 95, 90, 85, 80, 76, 72, 68, 64,
+    60, 57, 54, 51, 50. A value below 100 that is *not* on this path can only
+    be reached after a malus (+25% per at-fault claim), i.e. it signals a
+    recent claim.
+    """
+    values = [start]
+    while values[-1] > floor:
+        nxt = math.floor(values[-1] * step * 100 + 1e-9) / 100
+        values.append(max(floor, nxt))
+    return [int(round(100 * v)) for v in values]
+
+
+def add_bm_history_flag(df: pd.DataFrame) -> pd.DataFrame:
+    """Add ``BMOffLadder`` = 1 if BonusMalus < 100 and not on the claim-free ladder.
+
+    This is a deterministic function of BonusMalus (no new data): it splits
+    each bonus-malus band into drivers who reached their level claim-free and
+    drivers who carry a recent malus. The LightGBM benchmark found this
+    structure on its own (double-lift and SHAP, see README).
+    """
+    out = df.copy()
+    ladder = set(claim_free_ladder())
+    out["BMOffLadder"] = ((out["BonusMalus"] < 100) & ~out["BonusMalus"].isin(ladder)).astype(int)
+    return out
+
+
 def add_bands(df: pd.DataFrame) -> pd.DataFrame:
-    """Add ``<var>Band`` columns for every banded rating factor."""
+    """Add ``<var>Band`` columns for every banded rating factor and the BM history flag."""
     out = df.copy()
     for var, (edges, labels) in BANDS.items():
         out[f"{var}Band"] = band(out[var], edges, labels)
-    return out
+    return add_bm_history_flag(out)
 
 
 def base_level(levels: pd.Series, exposure: pd.Series) -> str:

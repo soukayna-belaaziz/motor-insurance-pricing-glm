@@ -102,3 +102,24 @@ def test_base_level_is_highest_exposure():
     levels = pd.Series(["a", "b", "b", "c"])
     assert features.base_level(levels, pd.Series([5.0, 1.0, 1.0, 1.0])) == "a"
     assert features.base_level(levels, pd.Series([1.0, 3.0, 3.0, 1.0])) == "b"
+
+
+def test_folds_are_deterministic_balanced_and_by_policy():
+    ids = pd.Series([1, 1, 2, 3, 3, 3] + list(range(4, 1004)))
+    f1 = cleaning.assign_folds(ids, n_folds=5, seed=0)
+    assert f1.equals(cleaning.assign_folds(ids, n_folds=5, seed=0))
+    assert set(f1.unique()) == {1, 2, 3, 4, 5}
+    assert f1.groupby(ids).nunique().max() == 1
+    per_fold = f1.groupby(ids).first().value_counts()
+    assert per_fold.max() - per_fold.min() <= 1
+
+
+def test_claim_free_ladder_follows_french_bonus_malus_rule():
+    assert features.claim_free_ladder() == [100, 95, 90, 85, 80, 76, 72, 68, 64, 60, 57, 54, 51, 50]
+
+
+def test_bm_off_ladder_flag():
+    df = pd.DataFrame({"BonusMalus": [50, 62, 58, 76, 100, 125, 95]})
+    out = features.add_bm_history_flag(df)
+    # 62 and 58 cannot be reached claim-free from 100; >= 100 is never flagged.
+    assert out["BMOffLadder"].tolist() == [0, 1, 1, 0, 0, 0, 0]

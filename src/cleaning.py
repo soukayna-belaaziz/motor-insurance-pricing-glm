@@ -93,3 +93,16 @@ def split_policies(ids: pd.Series, test_share: float = config.TEST_SHARE, seed: 
     n_test = int(round(test_share * len(unique_ids)))
     test_ids = set(rng.permutation(unique_ids)[:n_test].tolist())
     return ids.isin(test_ids)
+
+
+def assign_folds(ids: pd.Series, n_folds: int = config.CV_FOLDS, seed: int = config.SEED) -> pd.Series:
+    """Assign each policy to one of ``n_folds`` cross-validation folds (1..n_folds).
+
+    Folds are a random permutation of the unique policy ids cut into
+    near-equal groups, so all rows of a policy share a fold.
+    """
+    unique_ids = np.sort(ids.unique())
+    rng = np.random.default_rng(seed)
+    perm = rng.permutation(unique_ids)
+    fold_of = pd.Series(np.arange(len(perm)) % n_folds + 1, index=perm)
+    return ids.map(fold_of).astype(int)
