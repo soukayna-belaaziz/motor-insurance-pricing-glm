@@ -1,6 +1,8 @@
 quantity,eur
 "predicted pure premium x exposure (GLM, incl. large-loss loading)",12555767.9482
 actual incurred claims (uncapped),9458631.29
+actual capped claims,8672512.3441
 actual capped claims x large-loss loading,12105959.9811
+test incurred / capped (test-implied loading),1.0906
 predicted / actual incurred,1.3274
 predicted / (actual capped x loading),1.0372

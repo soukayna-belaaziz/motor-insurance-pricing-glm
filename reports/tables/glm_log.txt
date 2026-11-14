@@ -12,4 +12,4 @@ Severity backward elimination (F test, alpha = 0.05):
     3 LogDensity_c 0.1828273
 Final severity formula: AvgClaimCapped ~ DrivAgeBand + VehAgeBand + BonusMalusBand + VehPowerBand + Region + Area
 Severity base (exp intercept) = 1398.23 EUR
-R stage runtime: 172.8 s
+R stage runtime: 100.7 s

@@ -74,6 +74,10 @@ log_lines <- c(log_lines, "Frequency backward elimination (LRT, alpha = 0.05):",
 
 # Policy-level diagnostics of the selected model
 mu_train <- predict(freq_glm, newdata = train, type = "response")
+phi_final <- sum((train$ClaimNb - mu_train)^2 / mu_train) / (nrow(train) - length(coef(freq_glm)))
+lrt_final <- term_tests(freq_glm, test = "LRT", phi = 1)
+lrt_final$p_value_quasi <- pchisq(lrt_final$deviance_increase / phi_final, lrt_final$df, lower.tail = FALSE)
+write.csv(lrt_final, file.path(tab_dir, "freq_term_tests_final_model.csv"), row.names = FALSE)
 od <- overdispersion_test(train$ClaimNb, mu_train)
 diag_freq <- data.frame(
   metric = c("policies", "parameters", "pearson_dispersion", "deviance_dispersion",
@@ -81,7 +85,7 @@ diag_freq <- data.frame(
              "train_sum_observed_claims", "train_sum_fitted_claims",
              "train_poisson_deviance_null", "train_poisson_deviance_model", "aic_cells_model"),
   value = c(nrow(train), length(coef(freq_glm)),
-            sum((train$ClaimNb - mu_train)^2 / mu_train) / (nrow(train) - length(coef(freq_glm))),
+            phi_final,
             poisson_deviance(train$ClaimNb, mu_train) / (nrow(train) - length(coef(freq_glm))),
             od$alpha, od$t, od$p_value,
             sum(train$ClaimNb), sum(mu_train),

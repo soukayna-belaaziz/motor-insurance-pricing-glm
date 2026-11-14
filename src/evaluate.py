@@ -95,7 +95,9 @@ def pure_premium_balance(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame([
         {"quantity": "predicted pure premium x exposure (GLM, incl. large-loss loading)", "eur": pred},
         {"quantity": "actual incurred claims (uncapped)", "eur": incurred},
+        {"quantity": "actual capped claims", "eur": capped},
         {"quantity": "actual capped claims x large-loss loading", "eur": capped * ll},
+        {"quantity": "test incurred / capped (test-implied loading)", "eur": incurred / capped},
         {"quantity": "predicted / actual incurred", "eur": pred / incurred},
         {"quantity": "predicted / (actual capped x loading)", "eur": pred / (capped * ll)},
     ])

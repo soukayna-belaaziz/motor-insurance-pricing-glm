@@ -86,6 +86,15 @@ def main() -> None:
         }
     )
     split.to_csv(config.TABLE_DIR / "split_summary.csv", index=False)
+
+    full = pd.concat([train, test])
+    checks = pd.DataFrame([{
+        "policies_with_claims": int((full["ClaimNbRaw"] > 0).sum()),
+        "claim_records": int(full["NbClaimsSev"].sum()),
+        "policies_where_ClaimNb_differs_from_claim_records": int((full["ClaimNbRaw"] != full["NbClaimsSev"]).sum()),
+    }])
+    checks.to_csv(config.TABLE_DIR / "data_checks.csv", index=False)
+    print(checks.to_string(index=False))
     print(split.to_string(index=False))
     print(info)
 
