@@ -135,8 +135,21 @@ log_lines <- c(log_lines, "Severity backward elimination (F test, alpha = 0.05):
                paste("Final severity formula:", deparse(formula(sev_glm), width.cutoff = 500)),
                sprintf("Severity base (exp intercept) = %.2f EUR", exp(coef(sev_glm)[1])))
 
-# Tweedie: base R has no Tweedie family (statmod/tweedie are on CRAN, which is
-# unreachable here), so the compound Poisson-Gamma alternative is not fitted.
+# ---------------------------------------------------------------------------
+# 2b. Tweedie GLM on the pure premium (comparison only)
+# ---------------------------------------------------------------------------
+# Compound Poisson-Gamma model of capped claim cost per exposure year, weights
+# = exposure, log link, family from mgcv (a recommended package shipped with
+# R). Power p = 1.5 is fixed, not estimated. Terms = union of those selected
+# for frequency and severity.
+tw_terms <- union(attr(terms(freq_glm), "term.labels"), attr(terms(sev_glm), "term.labels"))
+train$PurePremiumCapped <- train$ClaimAmountCappedTotal / train$Exposure
+tweedie_glm <- glm(reformulate(tw_terms, response = "PurePremiumCapped"),
+                   family = mgcv::Tweedie(p = 1.5, link = "log"), weights = Exposure, data = train,
+                   control = glm.control(maxit = 100))
+log_lines <- c(log_lines, sprintf("Tweedie GLM (p = 1.5): converged = %s in %d iterations; train fitted / observed capped cost = %.4f",
+                                  tweedie_glm$converged, tweedie_glm$iter,
+                                  sum(fitted(tweedie_glm) * train$Exposure) / sum(train$ClaimAmountCappedTotal)))
 
 # ---------------------------------------------------------------------------
 # 3. Test-set predictions (annual frequency, capped severity, pure premium)
@@ -149,6 +162,7 @@ pred <- data.frame(
   sev_glm = predict(sev_glm, newdata = test, type = "response")
 )
 pred$pure_premium_glm <- pred$freq_glm * pred$sev_glm * ll_loading
+pred$pure_premium_tweedie <- predict(tweedie_glm, newdata = test, type = "response") * ll_loading
 fwrite(pred, file.path("data", "processed", "glm_test_predictions.csv"))
 
 # ---------------------------------------------------------------------------

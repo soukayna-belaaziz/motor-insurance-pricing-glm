@@ -103,6 +103,29 @@ def pure_premium_balance(df: pd.DataFrame) -> pd.DataFrame:
     ])
 
 
+def pure_premium_comparison(df: pd.DataFrame) -> pd.DataFrame:
+    """Frequency x severity GLM vs Tweedie GLM on capped claim cost (test set).
+
+    The common large-loss loading is divided out so that both models are
+    compared on the capped cost they were fitted to.
+    """
+    from sklearn.metrics import mean_tweedie_deviance
+
+    ll = pd.read_csv(config.TABLE_DIR / "large_loss.csv")["large_loss_loading"].iloc[0]
+    e = df["Exposure"].to_numpy()
+    cost = df["ClaimAmountCappedTotal"].to_numpy()
+    rows = []
+    for col, name in [("pure_premium_glm", "Poisson x Gamma GLM"), ("pure_premium_tweedie", "Tweedie GLM (p = 1.5)")]:
+        pp = df[col].to_numpy() / ll
+        rows.append({
+            "model": name,
+            "gini_capped_cost": metrics.gini(cost, pp, e),
+            "mean_tweedie_deviance_p1.5": mean_tweedie_deviance(cost / e, pp, sample_weight=e, power=1.5),
+            "predicted_over_actual_capped": float((pp * e).sum() / cost.sum()),
+        })
+    return pd.DataFrame(rows)
+
+
 def severity_check(df: pd.DataFrame) -> pd.DataFrame:
     """Claim-weighted mean predicted vs observed capped severity on test claims."""
     s = df[df["NbClaimsSev"] > 0]
@@ -174,6 +197,9 @@ def main() -> None:
     pb = pure_premium_balance(df)
     pb.round(4).to_csv(config.TABLE_DIR / "pure_premium_balance.csv", index=False)
     print(pb.round(3).to_string(index=False))
+    ppc = pure_premium_comparison(df)
+    ppc.round(4).to_csv(config.TABLE_DIR / "pure_premium_models.csv", index=False)
+    print(ppc.round(4).to_string(index=False))
     sc = severity_check(df)
     sc.round(3).to_csv(config.TABLE_DIR / "severity_test_check.csv", index=False)
     print(sc.round(3).to_string(index=False))

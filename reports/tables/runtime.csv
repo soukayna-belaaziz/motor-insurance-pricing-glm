@@ -1,8 +1,8 @@
 stage,seconds
 download,0.0
-prepare,6.5
-oneway,2.9
-glm_r,101.5
-gbm,88.1
-evaluate,4.2
-total,203.2
+prepare,6.1
+oneway,3.2
+glm_r,130.2
+gbm,92.8
+evaluate,4.9
+total,237.2

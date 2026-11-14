@@ -86,8 +86,9 @@ validation split of the training set; refit on the full training set. The test s
 **8. Evaluation (Python, `src/evaluate.py`).** On the test set: Poisson deviance, ordered Lorenz curve
 and Gini index, double-lift chart, portfolio balance of claim counts and of the pure premium.
 
-Tweedie (compound Poisson-Gamma) GLM: **not fitted**. Base R has no Tweedie family and the `statmod`
-/ `tweedie` packages could not be installed (CRAN is not reachable from the build environment).
+**Tweedie check (R).** As a single-model alternative, a Tweedie (compound Poisson-Gamma) GLM is fitted
+directly on capped claim cost per exposure year (weights = exposure, log link, power p = 1.5 fixed, not
+estimated), using the `Tweedie` family of `mgcv`, a recommended package that ships with R.
 
 ## Results
 
@@ -183,6 +184,17 @@ product of the factors is checked against `predict()` in the code):
 | x large-loss loading | 1.396 | 1.396 | 1.396 |
 | **Pure premium / year** | **EUR 149** | **EUR 882** | **EUR 138** |
 
+**Frequency x severity vs Tweedie** (test set, capped claim cost, loading divided out):
+
+| Model | Gini on claim cost | Mean Tweedie deviance (p = 1.5) | Predicted / actual capped cost |
+|---|---:|---:|---:|
+| Poisson x Gamma GLM | 0.301 | 69.10 | 1.037 |
+| Tweedie GLM | 0.305 | 69.08 | 1.044 |
+
+The two are practically equivalent on this data. The frequency-severity split is kept as the main
+tariff because it shows *why* a risk is expensive (more claims or bigger claims) and lets each part
+have its own rating factors.
+
 Portfolio balance on the test set:
 
 | Quantity | EUR |
@@ -215,12 +227,13 @@ set from many years of data or an extreme-value (e.g. generalised Pareto) fit, n
   GAM smoothing or fused-lasso grouping of levels.
 - No interactions in the GLM; BonusMalus x DrivAge is the obvious candidate.
 - One random split. Repeated or grouped cross-validation would put a confidence interval on the Gini gap.
-- Flat large-loss loading estimated from one sample; no Tweedie GLM (package unavailable, see above).
+- Flat large-loss loading estimated from one sample; Tweedie power fixed at 1.5 rather than profiled.
 - Pure premium only: no expenses, commission, profit or reinsurance loading, so this is not a commercial premium.
 
 ## How to run
 
-Requirements: Python 3.13 with `requirements.txt`, R 4.3 with `data.table`, `ggplot2`, `testthat`.
+Requirements: Python 3.13 with `requirements.txt`, R 4.3 with `data.table`, `ggplot2`, `testthat`
+(plus the recommended package `mgcv`, included in standard R installations).
 
 ```bash
 pip install -r requirements.txt
@@ -228,8 +241,8 @@ make all        # download (if missing) -> prepare -> one-ways -> R GLMs -> Ligh
 make test       # pytest (17 tests) + testthat (22 expectations)
 ```
 
-`make all` is equivalent to `python -m src.pipeline`. Run time measured here: about 3.5 minutes on a
-shared 2-CPU machine (R GLM stage ~100 s, LightGBM ~90 s; `reports/tables/runtime.csv`). LightGBM uses
+`make all` is equivalent to `python -m src.pipeline`. Run time measured here: about 4 minutes on a
+shared 2-CPU machine (R GLM stage ~130 s, LightGBM ~95 s; `reports/tables/runtime.csv`). LightGBM uses
 one thread: on the shared machine, two threads were slower.
 
 ## Project structure
@@ -242,7 +255,7 @@ src/features.py          GLM bands for driver age, vehicle age, bonus-malus, veh
 src/prepare.py           stage 1: build train/test CSVs
 src/oneway.py            one-way tables and plots (training data)
 R/glm_functions.R        LR/F term tests, backward selection, relativities, overdispersion test
-R/fit_glm.R              stage 2: Poisson frequency GLM, Gamma severity GLM, tariff build-up
+R/fit_glm.R              stage 2: Poisson frequency, Gamma severity and Tweedie GLMs, tariff build-up
 src/gbm.py               stage 3: LightGBM Poisson with log-exposure init score, tuning, SHAP
 src/metrics.py           Poisson deviance, Lorenz curve, Gini, double lift
 src/evaluate.py          stage 4: test-set comparison and balance checks

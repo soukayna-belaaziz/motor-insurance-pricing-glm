@@ -12,4 +12,5 @@ Severity backward elimination (F test, alpha = 0.05):
     3 LogDensity_c 0.1828273
 Final severity formula: AvgClaimCapped ~ DrivAgeBand + VehAgeBand + BonusMalusBand + VehPowerBand + Region + Area
 Severity base (exp intercept) = 1398.23 EUR
-R stage runtime: 100.7 s
+Tweedie GLM (p = 1.5): converged = TRUE in 7 iterations; train fitted / observed capped cost = 1.0045
+R stage runtime: 129.3 s
