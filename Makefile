@@ -8,4 +8,7 @@ test:
 	python -m pytest -q tests
 	Rscript -e 'testthat::test_dir("tests/testthat", stop_on_failure = TRUE)'
 
-.PHONY: all data test
+notebook:
+	jupyter nbconvert --to notebook --execute --inplace notebooks/walkthrough.ipynb
+
+.PHONY: all data test notebook
