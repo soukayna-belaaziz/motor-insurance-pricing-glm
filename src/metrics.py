@@ -29,28 +29,34 @@ def mean_poisson_deviance(y: np.ndarray, mu: np.ndarray) -> float:
     return poisson_deviance(y, mu) / len(y)
 
 
-def lorenz_curve(y: np.ndarray, pred_freq: np.ndarray, exposure: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def lorenz_curve(
+    y: np.ndarray, pred_freq: np.ndarray, exposure: np.ndarray, sample_weight: np.ndarray | None = None
+) -> tuple[np.ndarray, np.ndarray]:
     """Ordered Lorenz (concentration) curve.
 
     Policies are sorted from the lowest to the highest predicted frequency;
     returns the cumulative share of exposure (x) and of observed claims (y),
-    both starting at 0.
+    both starting at 0. ``sample_weight`` (e.g. bootstrap counts) multiplies
+    both exposure and claims, which is the same as repeating each row.
     """
     order = np.argsort(np.asarray(pred_freq), kind="mergesort")
-    exp_sorted = np.asarray(exposure, dtype=float)[order]
-    y_sorted = np.asarray(y, dtype=float)[order]
+    w = np.ones(len(order)) if sample_weight is None else np.asarray(sample_weight, dtype=float)
+    exp_sorted = (np.asarray(exposure, dtype=float) * w)[order]
+    y_sorted = (np.asarray(y, dtype=float) * w)[order]
     x = np.concatenate([[0.0], np.cumsum(exp_sorted) / exp_sorted.sum()])
     c = np.concatenate([[0.0], np.cumsum(y_sorted) / y_sorted.sum()])
     return x, c
 
 
-def gini(y: np.ndarray, pred_freq: np.ndarray, exposure: np.ndarray) -> float:
+def gini(
+    y: np.ndarray, pred_freq: np.ndarray, exposure: np.ndarray, sample_weight: np.ndarray | None = None
+) -> float:
     """Gini index = 1 - 2 * area under the ordered Lorenz curve.
 
     0 for a model that does not rank risks better than random; larger is
     better. Ties in the prediction are broken by input order.
     """
-    x, c = lorenz_curve(y, pred_freq, exposure)
+    x, c = lorenz_curve(y, pred_freq, exposure, sample_weight)
     area = np.trapezoid(c, x)
     return float(1.0 - 2.0 * area)
 

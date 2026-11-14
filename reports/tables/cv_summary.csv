@@ -1,0 +1,4 @@
+model,mean_poisson_deviance_mean,mean_poisson_deviance_sd,mean_poisson_deviance_gap_LightGBM_minus_model_mean,mean_poisson_deviance_gap_LightGBM_minus_model_sd,folds_where_LightGBM_better_mean_poisson_deviance,gini_mean,gini_sd,gini_gap_LightGBM_minus_model_mean,gini_gap_LightGBM_minus_model_sd,folds_where_LightGBM_better_gini
+Poisson GLM v1,0.24138,0.00287,-0.00378,0.00075,5.0,0.29801,0.00455,0.03002,0.0058,5.0
+Poisson GLM refined,0.23914,0.0029,-0.00153,0.00049,5.0,0.31791,0.00861,0.01012,0.00169,5.0
+LightGBM,0.2376,0.00302,,,,0.32804,0.00951,,,

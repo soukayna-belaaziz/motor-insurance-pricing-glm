@@ -1,7 +1,9 @@
 """Single entry point: ``python -m src.pipeline`` (run from the project root).
 
 Stages: download -> prepare (Python) -> one-way analyses (Python)
--> GLMs (R) -> LightGBM (Python) -> evaluation (Python).
+-> GLMs (R) -> frequency GLM extensions: refinement, negative binomial,
+cross-validation fits (R) -> LightGBM (Python) -> test evaluation (Python)
+-> cross-validation and bootstrap (Python).
 """
 
 from __future__ import annotations
@@ -11,7 +13,7 @@ import time
 
 import pandas as pd
 
-from src import config, evaluate, gbm, oneway, prepare
+from src import config, evaluate, gbm, oneway, prepare, validation
 
 
 def run_r(script: str) -> None:
@@ -27,8 +29,10 @@ def main() -> None:
         ("prepare", prepare.main),
         ("oneway", oneway.main),
         ("glm_r", lambda: run_r("R/fit_glm.R")),
+        ("glm_extensions_r", lambda: run_r("R/fit_freq_extensions.R")),
         ("gbm", gbm.main),
         ("evaluate", evaluate.main),
+        ("validation", validation.main),
     ]
     times = []
     for name, fn in stages:

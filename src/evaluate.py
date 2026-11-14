@@ -21,19 +21,24 @@ def load_test_predictions() -> pd.DataFrame:
     """Test policies joined with GLM and GBM predictions (by IDpol)."""
     test = pd.read_csv(config.PROCESSED_DIR / "test.csv")
     glm = pd.read_csv(config.PROCESSED_DIR / "glm_test_predictions.csv")
+    refined = pd.read_csv(config.PROCESSED_DIR / "glm_refined_test_predictions.csv")
     gbm = pd.read_csv(config.PROCESSED_DIR / "gbm_test_predictions.csv")
-    out = test.merge(glm, on="IDpol", validate="one_to_one").merge(gbm, on="IDpol", validate="one_to_one")
+    out = (test.merge(glm, on="IDpol", validate="one_to_one")
+           .merge(refined, on="IDpol", validate="one_to_one")
+           .merge(gbm, on="IDpol", validate="one_to_one"))
     if len(out) != len(test):
         raise ValueError("prediction files do not cover the test set")
     return out
 
 
 def frequency_metrics(df: pd.DataFrame, train_freq: float) -> pd.DataFrame:
-    """Deviance, D^2, Gini and balance for the null model, the GLM and the GBM."""
+    """Deviance, D^2, Gini and balance for the null model, the GLMs and the GBM."""
     y, e = df["ClaimNb"].to_numpy(), df["Exposure"].to_numpy()
     preds = {
         "Null (train mean frequency)": np.full(len(df), train_freq),
-        "Poisson GLM (R)": df["freq_glm"].to_numpy(),
+        "Poisson GLM v1 (R)": df["freq_glm"].to_numpy(),
+        "Poisson GLM refined (R)": df["freq_glm_refined"].to_numpy(),
+        "Negative binomial GLM refined (R)": df["freq_glm_nb"].to_numpy(),
         "LightGBM Poisson (Python)": df["freq_gbm"].to_numpy(),
     }
     dev_null = metrics.poisson_deviance(y, preds["Null (train mean frequency)"] * e)
@@ -52,11 +57,23 @@ def frequency_metrics(df: pd.DataFrame, train_freq: float) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def gap_closed(fm: pd.DataFrame) -> pd.DataFrame:
+    """Share of the GLM v1 -> GBM gap (deviance and Gini) closed by the refined GLM."""
+    m = fm.set_index("model")
+    v1, ref, g = m.loc["Poisson GLM v1 (R)"], m.loc["Poisson GLM refined (R)"], m.loc["LightGBM Poisson (Python)"]
+    rows = []
+    for col in ["mean_poisson_deviance", "gini"]:
+        rows.append({"metric": col, "glm_v1": v1[col], "glm_refined": ref[col], "gbm": g[col],
+                     "gap_v1_to_gbm": g[col] - v1[col], "share_closed_pct": 100 * (ref[col] - v1[col]) / (g[col] - v1[col])})
+    return pd.DataFrame(rows)
+
+
 def plot_lorenz(df: pd.DataFrame) -> None:
     """Ordered Lorenz curves of the two models on the test set."""
     fig, ax = plotting.plt.subplots(figsize=(5.5, 5))
     y, e = df["ClaimNb"].to_numpy(), df["Exposure"].to_numpy()
-    for col, name, color in [("freq_glm", "Poisson GLM", plotting.BLUE), ("freq_gbm", "LightGBM", plotting.ORANGE)]:
+    for col, name, color in [("freq_glm", "GLM v1", plotting.BLUE), ("freq_glm_refined", "GLM refined", plotting.AQUA),
+                             ("freq_gbm", "LightGBM", plotting.ORANGE)]:
         x, c = metrics.lorenz_curve(y, df[col].to_numpy(), e)
         idx = np.linspace(0, len(x) - 1, 2000).astype(int)
         ax.plot(x[idx], c[idx], color=color, label=f"{name} (Gini {metrics.gini(y, df[col].to_numpy(), e):.3f})")
@@ -152,7 +169,7 @@ def twin_robustness(df: pd.DataFrame) -> pd.DataFrame:
         s = df[mask]
         y, e = s["ClaimNb"].to_numpy(), s["Exposure"].to_numpy()
         row = {"subset": label, "policies": int(mask.sum()), "observed_frequency": y.sum() / e.sum()}
-        for col, name in [("freq_glm", "glm"), ("freq_gbm", "gbm")]:
+        for col, name in [("freq_glm", "glm"), ("freq_glm_refined", "glm_refined"), ("freq_gbm", "gbm")]:
             row[f"mean_deviance_{name}"] = metrics.mean_poisson_deviance(y, s[col].to_numpy() * e)
             row[f"gini_{name}"] = metrics.gini(y, s[col].to_numpy(), e)
         rows.append(row)
@@ -181,6 +198,13 @@ def main() -> None:
     fm = frequency_metrics(df, train_freq)
     fm.round(5).to_csv(config.TABLE_DIR / "test_metrics.csv", index=False)
     print(fm.round(4).to_string(index=False))
+    gc = gap_closed(fm)
+    gc.round(5).to_csv(config.TABLE_DIR / "gap_closed.csv", index=False)
+    print(gc.round(4).to_string(index=False))
+    dl_ref = metrics.double_lift(df["ClaimNb"].to_numpy(), df["freq_gbm"].to_numpy(),
+                                 df["freq_glm_refined"].to_numpy(), df["Exposure"].to_numpy())
+    dl_ref.rename(columns=lambda c: c.replace("pred_a", "pred_gbm").replace("pred_b", "pred_glm_refined")).round(4).to_csv(
+        config.TABLE_DIR / "double_lift_refined.csv", index=False)
 
     dl = metrics.double_lift(df["ClaimNb"].to_numpy(), df["freq_gbm"].to_numpy(), df["freq_glm"].to_numpy(),
                              df["Exposure"].to_numpy())

@@ -1,8 +1,10 @@
 stage,seconds
 download,0.0
-prepare,6.1
-oneway,3.2
-glm_r,130.2
-gbm,92.8
-evaluate,4.9
-total,237.2
+prepare,6.9
+oneway,3.6
+glm_r,140.3
+glm_extensions_r,157.9
+gbm,92.1
+evaluate,5.6
+validation,48.8
+total,455.2

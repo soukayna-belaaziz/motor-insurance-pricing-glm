@@ -1,4 +1,6 @@
 model,mean_poisson_deviance,deviance_explained_vs_null_pct,gini,predicted_claims,observed_claims,predicted_over_observed
 Null (train mean frequency),0.24745,0.0,0.0,5285.42313,5178,1.02075
-Poisson GLM (R),0.23637,4.4776,0.28327,5286.76528,5178,1.02101
+Poisson GLM v1 (R),0.23637,4.4776,0.28327,5286.76528,5178,1.02101
+Poisson GLM refined (R),0.23371,5.55317,0.30475,5279.42936,5178,1.01959
+Negative binomial GLM refined (R),0.23373,5.54584,0.30507,5293.13884,5178,1.02224
 LightGBM Poisson (Python),0.23197,6.25669,0.32024,5310.60972,5178,1.02561
