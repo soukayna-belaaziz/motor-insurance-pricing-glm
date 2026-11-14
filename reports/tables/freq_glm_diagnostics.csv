@@ -1,0 +1,13 @@
+"metric","value"
+"policies",542393
+"parameters",54
+"pearson_dispersion",1.72920556707929
+"deviance_dispersion",0.241186225086932
+"cameron_trivedi_alpha",0.65162357391683
+"cameron_trivedi_t",1.72085208912185
+"cameron_trivedi_p",0.0426388337173991
+"train_sum_observed_claims",21227
+"train_sum_fitted_claims",21227.0000001562
+"train_poisson_deviance_null",137757.749233631
+"train_poisson_deviance_model",130804.696127422
+"aic_cells_model",133369.812775896

@@ -1,0 +1,15 @@
+Log-density reference (exposure-weighted median): 5.710, i.e. Density = 302 inhabitants/km2
+Frequency GLM fitted on 221740 rating cells (from 542393 policies)
+Frequency backward elimination (LRT, alpha = 0.05):
+ step dropped   p_value
+    1    Area 0.1389846
+Final frequency formula: ClaimNb ~ DrivAgeBand + VehAgeBand + BonusMalusBand + VehPowerBand + VehBrand + VehGas + Region + LogDensity_c + offset(log(Exposure))
+Frequency base (exp intercept) = 0.05284 claims per year
+Severity backward elimination (F test, alpha = 0.05):
+ step      dropped   p_value
+    1     VehBrand 0.7959401
+    2       VehGas 0.3717099
+    3 LogDensity_c 0.1828273
+Final severity formula: AvgClaimCapped ~ DrivAgeBand + VehAgeBand + BonusMalusBand + VehPowerBand + Region + Area
+Severity base (exp intercept) = 1398.23 EUR
+R stage runtime: 172.8 s
