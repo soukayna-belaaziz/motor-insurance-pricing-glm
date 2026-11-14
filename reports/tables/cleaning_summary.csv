@@ -1,0 +1,6 @@
+rule,policies_capped,share_pct
+ClaimNb > 4,8,0.001
+Exposure > 1.0,1224,0.181
+VehAge > 20,8321,1.227
+DrivAge > 90,401,0.059
+BonusMalus > 150,209,0.031

@@ -1,0 +1,2 @@
+quantile,threshold_eur,train_claims,train_claims_above_threshold,train_incurred_eur,train_capped_eur,large_loss_loading
+0.995,34965.85,21259,107,50450585.0,36143253.0,1.3959
