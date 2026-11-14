@@ -109,3 +109,53 @@ test_that("weighted Gamma GLM reproduces the claim-weighted mean severity", {
   expect_equal(exp(coef(m)[[1]]), weighted.mean(df$avg[df$g == "a"], df$n_claims[df$g == "a"]), tolerance = 1e-6)
   expect_gt(pearson_dispersion(m), 0)
 })
+
+test_that("fit_poisson_cells reproduces the policy-level fit and slim objects still predict", {
+  df <- simulate_portfolio()
+  df$x <- round(df$x)
+  f <- ClaimNb ~ age + fuel + x + offset(log(Exposure))
+  m_pol <- glm(f, family = poisson(), data = df)
+  m_cells <- fit_poisson_cells(f, df)
+  expect_lt(m_cells$n_cells, nrow(df))
+  expect_equal(coef(m_cells), coef(m_pol), tolerance = 1e-7)
+  expect_null(m_cells$residuals)
+  expect_equal(unname(predict(m_cells, df, type = "response")), unname(fitted(m_pol)), tolerance = 1e-7)
+  # Warm start from a smaller model gives the same answer.
+  m_small <- fit_poisson_cells(ClaimNb ~ age + offset(log(Exposure)), df)
+  m_warm <- fit_poisson_cells(f, df, start = coef(m_small))
+  expect_equal(coef(m_warm), coef(m_pol), tolerance = 1e-6)
+})
+
+test_that("log-likelihood helpers match R's logLik for Poisson and negative binomial fits", {
+  df <- simulate_portfolio(n = 4000, seed = 5)
+  m <- glm(ClaimNb ~ age + fuel + offset(log(Exposure)), family = poisson(), data = df)
+  expect_equal(poisson_loglik(df$ClaimNb, fitted(m)), as.numeric(logLik(m)), tolerance = 1e-8)
+  set.seed(5)
+  df$y_nb <- rnbinom(nrow(df), mu = fitted(m) * 3, size = 1.5)
+  nb <- MASS::glm.nb(y_nb ~ age + fuel + offset(log(Exposure)), data = df)
+  expect_equal(nb_loglik(df$y_nb, fitted(nb), nb$theta), as.numeric(logLik(nb)), tolerance = 1e-6)
+})
+
+test_that("lr_compare gives the chi-square p-value and a larger quasi p-value when phi > 1", {
+  out <- lr_compare(-1010, -1000, df = 2, phi = 2)
+  expect_equal(unname(out["lr"]), 20)
+  expect_equal(unname(out["p_value"]), pchisq(20, 2, lower.tail = FALSE))
+  expect_gt(out["p_value_quasi"], out["p_value"])
+})
+
+test_that("gini_index is +/-0.75 for perfect and reversed ordering of one claim in four", {
+  y <- c(0, 0, 0, 1)
+  e <- rep(1, 4)
+  # Perfect ordering: all claims in the top quarter of exposure -> Gini = 1 - 0.25 = 0.75.
+  expect_equal(gini_index(y, c(0.1, 0.2, 0.3, 0.9), e), 0.75)
+  expect_equal(gini_index(y, c(0.9, 0.2, 0.3, 0.1), e), -0.75)
+})
+
+test_that("relativity_table lists one row per coefficient for interaction and spline terms", {
+  df <- simulate_portfolio()
+  m <- glm(ClaimNb ~ age + fuel + age:fuel + splines::ns(x, df = 3) + offset(log(Exposure)),
+           family = poisson(), data = df)
+  rt <- relativity_table(m)
+  expect_equal(sum(rt$term == "age:fuel"), sum(grepl("^age[a-z]+:fuel", names(coef(m)))))
+  expect_equal(sum(grepl("^splines::ns", rt$term)), 3)
+})

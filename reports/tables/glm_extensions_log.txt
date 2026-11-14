@@ -1,0 +1,2 @@
+Refined frequency formula: ClaimNb ~ DrivAgeBand + VehAgeBand + BonusMalusBand + VehPowerBand + VehBrand + VehGas + Region + LogDensity_c + BMOffLadder + offset(log(Exposure))
+Extension stage runtime: 157.1 s

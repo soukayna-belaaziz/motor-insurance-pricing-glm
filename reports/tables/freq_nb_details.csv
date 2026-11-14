@@ -1,0 +1,10 @@
+"metric","value"
+"lr_nb_vs_poisson",230.194261523837
+"p_value_boundary_chibar",2.70363130750832e-52
+"max_abs_relativity_change_nb_vs_poisson",0.0120109642269963
+"median_abs_relativity_change_nb_vs_poisson",0.00197948439807094
+"nb_fit_seconds",25.0153214931488
+"theta_start_poisson_means",1.6263555495176
+"cameron_trivedi_alpha_refined",0.524069182442714
+"cameron_trivedi_p_refined",0.0857380432539389
+"nb_implied_variance_ratio_at_mean_policy",1.02423602480339

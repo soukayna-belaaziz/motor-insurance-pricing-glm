@@ -126,7 +126,20 @@ backward_select <- function(model, test = "LRT", alpha = 0.05, phi = NULL, initi
 relativity_table <- function(model) {
   est <- coef(summary(model))
   out <- list()
-  for (term in attr(terms(model), "term.labels")) {
+  # Column -> term map from a small model matrix (columns depend only on xlevels).
+  tt <- delete.response(terms(model))
+  mm_small <- model.matrix(tt, model.frame(tt, head(model$data, 50), xlev = model$xlevels),
+                           contrasts.arg = model$contrasts)
+  assign <- attr(mm_small, "assign")
+  labels <- attr(tt, "term.labels")
+  for (term in labels) {
+    if (!term %in% names(model$xlevels) && !term %in% rownames(est)) {
+      # Interaction or multi-column (e.g. spline) term: one row per coefficient.
+      nm <- intersect(colnames(mm_small)[assign == match(term, labels)], rownames(est))
+      if (!length(nm)) next  # aliased term (e.g. a main effect implied by the bands)
+      out[[term]] <- data.frame(term = term, level = nm, beta = est[nm, 1], se = est[nm, 2])
+      next
+    }
     if (term %in% names(model$xlevels)) {
       lv <- model$xlevels[[term]]
       rows <- data.frame(term = term, level = lv, beta = 0, se = NA_real_)
@@ -178,4 +191,75 @@ weighted_median <- function(x, w) {
   o <- order(x)
   cw <- cumsum(w[o]) / sum(w)
   x[o][which(cw >= 0.5)[1]]
+}
+
+#' Fit a Poisson GLM on rating cells and return a memory-light glm object.
+#'
+#' Rows are aggregated over every variable used on the right-hand side of
+#' `formula` (claims and exposure summed per cell; identical Poisson estimates,
+#' see the testthat suite). Large components that are not needed for
+#' prediction, coefficients or deviance (residuals, working weights, ...) are
+#' removed, including the QR decomposition: the object can still predict()
+#' and report coefficients and deviance, but not standard errors. With
+#' `keep_qr = TRUE` the full glm is returned (for summary() and term_tests()).
+#'
+#' @param formula Poisson formula with `offset(log(<exposure>))`.
+#' @param data policy-level data.frame.
+#' @param start optional named vector of starting coefficients (warm start);
+#'   names not in the new model are ignored, new ones start at 0.
+#' @param epsilon IRLS convergence tolerance on the relative deviance change.
+fit_poisson_cells <- function(formula, data, start = NULL, response = "ClaimNb",
+                              exposure = "Exposure", keep_qr = FALSE, epsilon = 1e-8) {
+  vars <- setdiff(all.vars(formula), c(response, exposure))
+  dt <- data.table::as.data.table(data[, c(vars, response, exposure)])
+  agg <- as.data.frame(dt[, lapply(.SD, sum), by = vars, .SDcols = c(response, exposure)])
+  for (v in vars) if (is.factor(data[[v]])) agg[[v]] <- factor(agg[[v]], levels = levels(data[[v]]))
+  b0 <- NULL
+  if (!is.null(start)) {
+    start[is.na(start)] <- 0
+    cols <- colnames(model.matrix(formula, agg[seq_len(min(nrow(agg), 2000)), , drop = FALSE]))
+    b0 <- setNames(rep(0, length(cols)), cols)
+    common <- intersect(cols, names(start))
+    b0[common] <- start[common]
+    if (!"(Intercept)" %in% common) b0 <- NULL
+  }
+  m <- glm(formula, family = poisson(link = "log"), data = agg, start = b0, model = FALSE,
+           control = glm.control(epsilon = epsilon, maxit = 50))
+  m$n_cells <- nrow(agg)
+  if (keep_qr) m else slim_glm(m)
+}
+
+#' Drop the n-length components of a glm that are not needed afterwards.
+slim_glm <- function(m, keep_qr = FALSE) {
+  for (nm in c("residuals", "fitted.values", "effects", "weights", "prior.weights",
+               "linear.predictors", "y", "model")) m[[nm]] <- NULL
+  # predict() needs the full QR of a rank-deficient fit (to flag non-estimable rows).
+  if (!keep_qr && m$rank == length(m$coefficients)) {
+    m$qr <- structure(list(pivot = m$qr$pivot, rank = m$qr$rank), class = "qr")
+  }
+  m
+}
+
+#' Policy-level Poisson log-likelihood of a fitted frequency model.
+poisson_loglik <- function(y, mu) sum(dpois(y, mu, log = TRUE))
+
+#' Policy-level negative binomial (NB2) log-likelihood, Var(Y) = mu + mu^2 / theta.
+nb_loglik <- function(y, mu, theta) sum(dnbinom(y, size = theta, mu = mu, log = TRUE))
+
+#' Gini index from the ordered Lorenz curve (same definition as src/metrics.py).
+gini_index <- function(y, pred_freq, exposure) {
+  o <- order(pred_freq, method = "radix")
+  x <- c(0, cumsum(exposure[o]) / sum(exposure))
+  c <- c(0, cumsum(y[o]) / sum(y))
+  1 - 2 * sum(diff(x) * (head(c, -1) + tail(c, -1)) / 2)
+}
+
+#' Likelihood-ratio comparison of two nested models from their policy-level log-likelihoods.
+#'
+#' Returns the LR statistic, the added parameters, the Poisson p-value and a
+#' quasi-Poisson p-value (statistic divided by the dispersion `phi`).
+lr_compare <- function(ll_small, ll_big, df, phi = 1) {
+  lr <- 2 * (ll_big - ll_small)
+  c(lr = lr, df = df, p_value = pchisq(lr, df, lower.tail = FALSE),
+    p_value_quasi = pchisq(lr / phi, df, lower.tail = FALSE))
 }
